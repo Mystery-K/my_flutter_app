@@ -1,41 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'dart:convert';
+import 'dart:io';
 
 void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    print('build');
+
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
         primarySwatch: Colors.blue,
       ),
       home: MyHomePage(title: 'Flutter Demo Home Page'),
+      // debugShowCheckedModeBanner: false,
     );
   }
 }
 
+Future fetchApi(String uri) async {
+  final HttpClient client = HttpClient();
+  var result;
+  try {
+    final HttpClientRequest request = await client.getUrl(Uri.parse(uri));
+    final HttpClientResponse response = await request.close();
+    if (response.statusCode == HttpStatus.ok) {
+      result = json.decode(await response.transform(utf8.decoder).join());
+    }
+  } catch (e) {
+    result = e;
+  }
+  client.close();
+  return result;
+}
+
 class MyHomePage extends StatefulWidget {
   MyHomePage({Key key, this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
 
   final String title;
 
@@ -45,67 +48,98 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  List _streamData = [];
 
   void _incrementCounter() {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
       _counter++;
+      print(_counter);
     });
+  }
+
+  Future<void> _fetchStream() async {
+    final _res = await fetchApi(
+        'https://i16-tb.sgsnssdk.com/api/723/stream?category=391&category_parameter=&is_preload=0&count=20&min_behot_time=1.556011701999E9&sign=9d8f71b264d6f72ff953f854542fcb530d3b1577&timestamp=1556012084&logo=helo&session_impr_id=0&gender=0&bv_is_auto_play=0&youtube=0&manifest_version_code=223&app_version=2.2.3&iid=6680773317588633346&original_channel=local_test&channel=local_test&device_type=MI%208&language=hi&app_version_minor=2.2.3.02&resolution=2028*1080&openudid=08ed61b7e8fd566a&update_version_code=2230&sys_language=zh&sys_region=cn&os_api=28&tz_name=Asia%2FShanghai&tz_offset=28800&dpi=440&brand=Xiaomi&ac=WIFI&device_id=6647361290569385474&os=android&os_version=9&version_code=223&hevc_supported=1&device_brand=Xiaomi&device_platform=android&sim_region=&region=in&aid=1342&ui_language=en');
+
+    setState(() {
+      _streamData = _res['data']['items'];
+    });
+    print(_res);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStream();
+    setState(() {
+      _counter = 4;
+    });
+  }
+
+  Widget _buildFeed(BuildContext context) {
+    if (_streamData.length != 0) {
+      return ListView.builder(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: _streamData.length,
+        itemBuilder: (context, i) {
+          return _buildFeedItem(_streamData[i], i);
+        },
+      );
+    } else {
+      return CupertinoActivityIndicator();
+    }
+  }
+
+  Widget _buildFeedItem(item, i) {
+    return Card(
+      child: Container(
+        margin: EdgeInsets.all(4.0),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Container(
+                margin: EdgeInsets.only(left: 8.0),
+                height: 150,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      item['name'] ?? 'kw',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 20.0),
+                      maxLines: 1,
+                    ),
+                    Text(
+                      item['title'] ?? 'test',
+                      style: TextStyle(fontSize: 16.0),
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text(widget.title, style: TextStyle(color: Colors.black)),
+        backgroundColor: new Color(0xfff8faf8),
+        centerTitle: true,
+        // elevation: 1.0,
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
-          ],
-        ),
-      ),
+      body: _buildFeed(context),
+      // body: Text('$_counter'),
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
         tooltip: 'Increment',
         child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ),
     );
   }
 }
